@@ -566,9 +566,19 @@ class Network extends Component {
 
   render() {
     const SelectedNodesList = () => (
-      <List>
-        {Array.from(this.state.selectedNodes).join(',')}
-      </List>
+      <div>
+        {Array.from(this.state.selectedNodes)
+              .map(id => {
+                var ct = String(id)
+                if (this.state.colorBy) {
+                  ct = ct + " (" + this.state.colorBy + "=" + this.graph.getNode(id).data[this.state.colorBy] + ")"
+                }
+                return (
+                  <div>{ct}</div>
+                )
+              })
+        }
+      </div>
     )
 
     const degreeHist = this.makeHist(this.originalGraphDegreeDist, this.state.degreeArea, this.degreeBrush);
