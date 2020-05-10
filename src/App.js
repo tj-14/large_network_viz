@@ -84,6 +84,7 @@ class Network extends Component {
     this.setLinkTransparency(this.state.linkTransparency);
 
     this.renderMatrix();
+    this.recolor();
   }
 
   renderMatrix = () => {
@@ -115,41 +116,31 @@ class Network extends Component {
     this.events = Viva.Graph.webglInputEvents(this.matrixGraphics, this.matrix);
     this.events.click(node => {
       // console.log('Single click on node: ' + node.id);
-      var nodeUI = this.matrixGraphics.getNodeUI(node.id);
       if (this.state.matrixSelectedNodes.has(node.id)) {
         const newMatrixSelectedNodes = new Set(this.state.matrixSelectedNodes);
         newMatrixSelectedNodes.delete(node.id);
         this.setState({ matrixSelectedNodes: newMatrixSelectedNodes });
-        nodeUI.color = 0x009ee8ff;
-        nodeUI.size = 10;
       } else {
         this.setState({ matrixSelectedNodes: new Set(this.state.matrixSelectedNodes).add(node.id) });
-        nodeUI.color = 0xFFA500ff;
-        nodeUI.size = 15;
       }
-      this.matrixRenderer.rerender();
       var position = this.matrixLayout.getNodePosition(node.id);
-      this.selectANode((position.x + 400) / 10);
-      this.selectANode((position.y + 400) / 10);
+      this.addNodeToSelectedNodes((position.x + 400) / 10);
+      this.addNodeToSelectedNodes((position.y + 400) / 10);
+      this.recolor();
     });
 
     this.matrixRenderer.run();
   }
 
   selectANode = id => {
-    var nodeUI = this.graphics.getNodeUI(id);
     if (this.state.selectedNodes.has(id)) {
       const newSelectedNodes = new Set(this.state.selectedNodes);
       newSelectedNodes.delete(id);
       this.setState({ selectedNodes: newSelectedNodes });
-      nodeUI.color = 0x009ee8ff;
-      nodeUI.size = 10;
     } else {
       this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
-      nodeUI.color = 0xFFA500ff;
-      nodeUI.size = 20;
     }
-    this.renderer.rerender();
+    this.recolor();
   }
 
   preComputeOriginalGraph = () => {
@@ -265,23 +256,16 @@ class Network extends Component {
 
       this.graph.forEachNode(node => {
         var nodePos = this.layout.getNodePosition(node.id);
-        var nodeUI = this.graphics.getNodeUI(node.id);
         if (topLeft.x < nodePos.x && nodePos.x < bottomRight.x &&
           topLeft.y < nodePos.y && nodePos.y < bottomRight.y) {
           currentSelectedNodes.add(node.id);
-          nodeUI.color = 0xFFA500ff;
-          nodeUI.size = 20;
         } else {
           if (currentSelectedNodes.has(node.id)) {
             currentSelectedNodes.delete(node.id);
-            if (!this.state.selectedNodes.has(node.id)) {
-              nodeUI.color = 0x009ee8ff;
-              nodeUI.size = 10;
-            }
           }
         }
       });
-      this.renderer.rerender();
+      this.recolor();
     });
 
     dragndrop.onStop(() => {
@@ -376,39 +360,24 @@ class Network extends Component {
         var yid = (nodePos.y + 400) / 10;
         if (topLeft.x < nodePos.x && nodePos.x < bottomRight.x &&
           topLeft.y < nodePos.y && nodePos.y < bottomRight.y) {
-          var nodeUI = this.matrixGraphics.getNodeUI(node.id);
           currentSelectedMatrixNodes.add(node.id);
-          nodeUI.color = 0xFFA500ff;
-          nodeUI.size = 15;
           [xid, yid].forEach(nid => {
-            var nodeUI = this.graphics.getNodeUI(nid);
             currentSelectedNodes.add(nid);
-            nodeUI.color = 0xFFA500ff;
-            nodeUI.size = 20;
           });
         } else {
           if (currentSelectedMatrixNodes.has(node.id)) {
             currentSelectedMatrixNodes.delete(node.id);
-            var nodeUI = this.matrixGraphics.getNodeUI(node.id);
             if (!this.state.matrixSelectedNodes.has(node.id)) {
-              nodeUI.color = 0x009ee8ff;
-              nodeUI.size = 10;
               [xid, yid].forEach(nid => {
                 if (currentSelectedNodes.has(nid)) {
                   currentSelectedNodes.delete(nid);
-                  if (!this.state.selectedNodes.has(nid)) {
-                    var nodeUI = this.graphics.getNodeUI(nid);
-                    nodeUI.color = 0x009ee8ff;
-                    nodeUI.size = 10;
-                  }
                 }
               });
             }
           }
         }
       });
-      this.renderer.rerender();
-      this.matrixRenderer.rerender();
+      this.recolor();
     });
 
     dragndrop.onStop(() => {
@@ -531,23 +500,41 @@ class Network extends Component {
     this.loadGraph(out);
   }
 
-  clearSelectedNodes = () => {
-    this.setState({ selectedNodes: new Set([]), matrixSelectedNodes: new Set([]) });
-
+  recolor = () => {
     this.graph.forEachNode(node => {
       var nodeUI = this.graphics.getNodeUI(node.id);
-      nodeUI.color = 0x009ee8ff;
-      nodeUI.size = 10;
+      if (this.state.selectedNodes.has(node.id)) {
+        nodeUI.color = 0xFFA500ff;
+        // nodeUI.size = 20;
+      } else {
+        nodeUI.color = 0x009ee8ff;
+        // nodeUI.size = 10;
+      }
     })
 
     this.matrix.forEachNode(node => {
+      var position = this.matrixLayout.getNodePosition(node.id);
       var nodeUI = this.matrixGraphics.getNodeUI(node.id);
-      nodeUI.color = 0x009ee8ff;
-      nodeUI.size = 10;
+      var x = (position.x + 400) / 10;
+      var y = (position.y + 400) / 10;
+      if (this.state.selectedNodes.has(x) && this.state.selectedNodes.has(y)) {
+        nodeUI.color = 0xFFA500ff;
+        // nodeUI.size = 15;
+      } else {
+        nodeUI.color = 0x009ee8ff;
+        // nodeUI.size = 10;
+      }
     })
 
+    this.matrixRenderer.rerender();
+    this.renderer.rerender();
+  }
+
+  clearSelectedNodes = () => {
+    this.setState({ selectedNodes: new Set([]), matrixSelectedNodes: new Set([]) });
     this.renderer.rerender();
     this.matrixRenderer.rerender();
+    this.recolor();
   }
 
   resetLinks = _ => {
@@ -578,10 +565,7 @@ class Network extends Component {
   }
 
   addNodeToSelectedNodes = async id => {
-    var nodeUI = this.graphics.getNodeUI(id);
     await this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
-    nodeUI.color = 0xFFA500ff;
-    nodeUI.size = 20;
   }
 
   doRandomWalk = async () => {
@@ -596,7 +580,7 @@ class Network extends Component {
       })
       currentId = candidates[Math.floor(Math.random() * candidates.length)];
     }
-    this.renderer.rerender();
+    this.recolor();
   }
 
   doFilter = () => {
@@ -628,8 +612,7 @@ class Network extends Component {
     if (canExpand) {
       this.resetLinks();
     }
-    this.renderMatrix();
-    this.renderer.rerender();
+    this.recolor();
   }
 
   degreeBrush = async (area) => {
@@ -689,7 +672,7 @@ class Network extends Component {
   render() {
     const SelectedNodesList = () => (
       <List>
-        {Array.from(this.state.selectedNodes).map(v => <List.Item key={v}>{v}</List.Item>)}
+        {Array.from(this.state.selectedNodes).join(',')}
       </List>
     )
 
@@ -704,7 +687,7 @@ class Network extends Component {
             <Form>
               Data:
               <Form.Group widths='equal'>
-                <Form.Button size='mini' onClick={() => { this.loadGraph(snap_fb); this.renderer.rerender(); }}>SNAP</Form.Button>
+                <Form.Button size='mini' onClick={() => { this.loadGraph(snap_fb); }}>SNAP</Form.Button>
                 <Popup
                   trigger={
                     <Form.Button size='mini' color='red' content='Custom' />
@@ -712,7 +695,7 @@ class Network extends Component {
                   content={<Form>
                     <TextArea placeholder='{"nodes": [{"id":"1"},{"id":"2"}], "edges": [{"id":"0","source":"1","target":"2"}]}' onChange={this.updateInput} />
                     <div style={{ height: '5px' }} />
-                    <Button size='mini' color='green' content='Confirm' onClick={() => { this.loadGraph(this.state.userData); this.renderer.rerender(); }} /></Form>}
+                    <Button size='mini' color='green' content='Confirm' onClick={() => { this.loadGraph(this.state.userData); }} /></Form>}
                   on='click'
                   position='top right'
                 />
