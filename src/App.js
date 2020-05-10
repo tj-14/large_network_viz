@@ -4,8 +4,9 @@ import * as moment from "moment";
 import Viva from 'vivagraphjs';
 import * as centrality from 'ngraph.centrality';
 import snap_fb from './data/snap_fb.json';
+import amherst from './data/amherst.json';
 import { saveAs } from 'file-saver';
-import { Divider, Form, Input, Grid, Dropdown, Header, Button, List, Popup, Icon, TextArea } from 'semantic-ui-react';
+import { Divider, Form, Input, Grid, Dropdown, Header, Button, Popup, Icon, TextArea } from 'semantic-ui-react';
 import {
   XYPlot,
   XAxis,
@@ -130,9 +131,9 @@ class Network extends Component {
     this.events.click(node => {
       // console.log('Single click on node: ' + node.id);
       var position = this.matrixLayout.getNodePosition(node.id);
-      this.addNodeToSelectedNodes((position.x + 400) / 10);
-      this.addNodeToSelectedNodes((position.y + 400) / 10);
-      this.recolor();
+      var [x, y] = this.getXYfromMatrix(position)
+      this.addNodeToSelectedNodes(x);
+      this.addNodeToSelectedNodes(y);
     });
 
     this.matrixRenderer.run();
@@ -143,10 +144,12 @@ class Network extends Component {
       const newSelectedNodes = new Set(this.state.selectedNodes);
       newSelectedNodes.delete(id);
       this.setState({ selectedNodes: newSelectedNodes });
+      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
     } else {
       this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
+      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), true)
     }
-    this.recolor();
+    this.renderer.rerender()
   }
 
   preComputeOriginalGraph = () => {
@@ -257,13 +260,15 @@ class Network extends Component {
         if (topLeft.x < nodePos.x && nodePos.x < bottomRight.x &&
           topLeft.y < nodePos.y && nodePos.y < bottomRight.y) {
           currentSelectedNodes.add(node.id);
+          this.recolorOneNode(node, this.graphics.getNodeUI(node.id), true)
         } else {
           if (currentSelectedNodes.has(node.id)) {
             currentSelectedNodes.delete(node.id);
+            this.recolorOneNode(node, this.graphics.getNodeUI(node.id), this.state.selectedNodes.has(node.id))
           }
         }
       });
-      this.recolor(currentSelectedNodes);
+      this.renderer.rerender()
     });
 
     dragndrop.onStop(() => {
@@ -384,44 +389,47 @@ class Network extends Component {
     this.loadGraph(out);
   }
 
+  recolorOneNode = (node, nodeUI, isSelected) => {
+    if (isSelected) {
+      nodeUI.color = 0xFFA500ff;
+    } else {
+      var alpha = this.state.colorBy ? node.data[this.state.colorBy] : 1;
+      const colorHex = '009ee8' + this.decimalToHex(parseInt(alpha * 255), 2)
+      const color = parseInt(colorHex, 16);
+      nodeUI.color = color;
+    }
+  }
+
+  getXYfromMatrix = position => {
+     return [String((position.x + 400) / 10), String((position.y + 400) / 10)]
+  }
+
   recolor = (currentSelectedNodes = new Set()) => {
     const checkNode = id => this.state.selectedNodes.has(id) || currentSelectedNodes.has(id)
     this.graph.forEachNode(node => {
-      var nodeUI = this.graphics.getNodeUI(node.id);
-      if (checkNode(node.id)) {
-        nodeUI.color = 0xFFA500ff;
-        // nodeUI.size = 20;
-      } else {
-        var alpha = this.state.colorBy ? node.data[this.state.colorBy] : 1;
-        const colorHex = '009ee8' + this.decimalToHex(parseInt(alpha * 255), 2)
-        const color = parseInt(colorHex, 16);
-        this.setState({ linkTransparency: alpha })
-        nodeUI.color = color;
-        // nodeUI.size = 10;
-      }
+      this.recolorOneNode(node, this.graphics.getNodeUI(node.id), checkNode(node.id))
     })
 
     this.matrix.forEachNode(node => {
       var position = this.matrixLayout.getNodePosition(node.id);
-      var nodeUI = this.matrixGraphics.getNodeUI(node.id);
-      var x = (position.x + 400) / 10;
-      var y = (position.y + 400) / 10;
+      var [x, y] = this.getXYfromMatrix(position)
+      var nodeUI = this.matrixGraphics.getNodeUI(node.id)
       if (checkNode(x) && checkNode(y)) {
         nodeUI.color = 0xFFA500ff;
-        // nodeUI.size = 15;
       } else {
         nodeUI.color = 0x009ee8ff;
-        // nodeUI.size = 10;
       }
     })
-
     this.matrixRenderer.rerender();
     this.renderer.rerender();
   }
 
   clearSelectedNodes = async () => {
+    for (var id in this.state.selectedNodes) {
+      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
+    }
     await this.setState({ selectedNodes: new Set([]) });
-    this.recolor();
+    this.renderer.rerender()
   }
 
   resetLinks = _ => {
@@ -463,6 +471,8 @@ class Network extends Component {
 
   addNodeToSelectedNodes = async id => {
     await this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
+    this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), true)
+    this.renderer.rerender()
   }
 
   doRandomWalk = async () => {
@@ -475,7 +485,6 @@ class Network extends Component {
       })
       currentId = candidates[Math.floor(Math.random() * candidates.length)];
     }
-    this.recolor();
   }
 
   doFilter = () => {
@@ -590,10 +599,13 @@ class Network extends Component {
           <Grid.Column width={4} className={"sideDiv"}>
             <h2>Control Panel</h2>
             <Grid>
-              <Grid.Column width={5}>
+              <Grid.Column width={4}>
                 <Button size='mini' onClick={() => { this.loadGraph(snap_fb); }}>SNAP</Button>
               </Grid.Column>
-              <Grid.Column width={5}>
+              <Grid.Column width={4}>
+                <Button size='mini' onClick={() => { this.loadGraph(amherst); }}>AMHERST</Button>
+              </Grid.Column>
+              <Grid.Column width={4}>
                 <Popup
                   trigger={
                     <Button size='mini' color='red' content='Custom' />
@@ -606,7 +618,7 @@ class Network extends Component {
                   position='top right'
                 />
               </Grid.Column>
-              <Grid.Column width={5}>
+              <Grid.Column width={4}>
                 <Button size='mini' onClick={() => {
                   var blob = new Blob([this.exportJson()], { type: "text/plain;charset=utf-8" });
                   saveAs(blob, `network_data_${moment().format("YYMMDDhhmmss")}.json`);
