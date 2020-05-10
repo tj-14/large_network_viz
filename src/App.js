@@ -21,7 +21,6 @@ class Network extends Component {
   state = {
     isRendering: true,
     selectedNodes: new Set([]),
-    matrixSelectedNodes: new Set([]),
     springLength: 10,
     springCoeff: 0.0005,
     dragCoeff: 0.02,
@@ -49,10 +48,10 @@ class Network extends Component {
     this.includedNodes = new Set([]);
     this.setState({ selectedNodes: new Set([]) });
 
-    data.nodes.forEach(n => { this.originalGraph.addNode(n.id); })
-    data.edges.forEach(e => { this.originalGraph.addLink(e.source, e.target); })
+    data.nodes.forEach(n => { this.originalGraph.addNode(String(n.id)); })
+    data.edges.forEach(e => { this.originalGraph.addLink(String(e.source), String(e.target)); })
     this.originalGraph.forEachNode(node => {
-      this.graph.addNode(node.id);
+      this.graph.addNode(String(node.id));
       this.includedNodes.add(String(node.id));
     });
     this.originalGraph.forEachLink(link => {
@@ -116,13 +115,6 @@ class Network extends Component {
     this.events = Viva.Graph.webglInputEvents(this.matrixGraphics, this.matrix);
     this.events.click(node => {
       // console.log('Single click on node: ' + node.id);
-      if (this.state.matrixSelectedNodes.has(node.id)) {
-        const newMatrixSelectedNodes = new Set(this.state.matrixSelectedNodes);
-        newMatrixSelectedNodes.delete(node.id);
-        this.setState({ matrixSelectedNodes: newMatrixSelectedNodes });
-      } else {
-        this.setState({ matrixSelectedNodes: new Set(this.state.matrixSelectedNodes).add(node.id) });
-      }
       var position = this.matrixLayout.getNodePosition(node.id);
       this.addNodeToSelectedNodes((position.x + 400) / 10);
       this.addNodeToSelectedNodes((position.y + 400) / 10);
@@ -180,16 +172,12 @@ class Network extends Component {
 
     document.addEventListener('keydown', e => {
       if (e.which === 16) { // shift key
-        this.renderer.pause();
+        this.renderer && this.renderer.pause();
         this.setState({ isRendering: false })
 
         if (!this.multiSelectOverlay) {
           var domOverlay = document.querySelector('#graph-overlay');
           this.multiSelectOverlay = this.createOverlay(domOverlay);
-        }
-        if (!this.multiSelectOverlayMatrix) {
-          var matrixDomOverlay = document.querySelector('#matrix-overlay');
-          this.multiSelectOverlayMatrix = this.createMatrixOverlay(matrixDomOverlay);
         }
       }
     });
@@ -198,10 +186,6 @@ class Network extends Component {
         if (this.multiSelectOverlay) {
           this.multiSelectOverlay.destroy();
           this.multiSelectOverlay = null;
-        }
-        if (this.multiSelectOverlayMatrix) {
-          this.multiSelectOverlayMatrix.destroy();
-          this.multiSelectOverlayMatrix = null;
         }
       }
     });
@@ -265,125 +249,11 @@ class Network extends Component {
           }
         }
       });
-      this.recolor();
+      this.recolor(currentSelectedNodes);
     });
 
     dragndrop.onStop(() => {
       selectionIndicator.style.display = 'none';
-      this.setState({ selectedNodes: new Set([...this.state.selectedNodes, ...currentSelectedNodes]) });
-      currentSelectedNodes = new Set([]);
-    });
-
-    overlayDom.style.display = 'block';
-
-    return {
-      destroy: function () {
-        overlayDom.style.display = 'none';
-        selectionIndicator.style.width = '0';
-        selectionIndicator.style.height = '0';
-        dragndrop.release();
-      }
-    };
-
-
-    function recalculateSelectedArea(e) {
-      var rect = e.target.getBoundingClientRect();
-      var x = Math.floor(e.clientX - rect.left); //x position within the element.
-      var y = Math.floor(e.clientY - rect.top);  //y position within the element.
-      if (x > 10 && y > 10) {
-        selectedArea.width = Math.abs(x - startX);
-        selectedArea.height = Math.abs(y - startY);
-        selectedArea.x = Math.min(x, startX);
-        selectedArea.y = Math.min(y, startY);
-      }
-    }
-
-    function updateSelectedAreaIndicator() {
-      selectionIndicator.style.left = selectedArea.x + 'px';
-      selectionIndicator.style.top = selectedArea.y + 'px';
-      selectionIndicator.style.width = selectedArea.width + 'px';
-      selectionIndicator.style.height = selectedArea.height + 'px';
-    }
-  }
-
-  createMatrixOverlay = (overlayDom) => {
-    var selectionClasName = 'matrix-selection-indicator';
-    var selectionIndicator = overlayDom.querySelector('#' + selectionClasName);
-    if (!selectionIndicator) {
-      selectionIndicator = document.createElement('div');
-      selectionIndicator.id = selectionClasName;
-      overlayDom.appendChild(selectionIndicator);
-    }
-
-    var dragndrop = Viva.Graph.Utils.dragndrop(overlayDom);
-    var selectedArea = {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0
-    };
-    var startX = 0;
-    var startY = 0;
-    var currentSelectedNodes = new Set([])
-    var currentSelectedMatrixNodes = new Set([])
-
-    dragndrop.onStart(e => {
-      var rect = e.target.getBoundingClientRect();
-      var x = Math.floor(e.clientX - rect.left); //x position within the element.
-      var y = Math.floor(e.clientY - rect.top);  //y position within the element.
-      startX = selectedArea.x = x;
-      startY = selectedArea.y = y;
-      selectedArea.width = selectedArea.height = 0;
-
-      updateSelectedAreaIndicator();
-      selectionIndicator.style.display = 'block';
-    });
-
-    dragndrop.onDrag(e => {
-      recalculateSelectedArea(e);
-      updateSelectedAreaIndicator();
-
-      var area = selectedArea;
-      var topLeft = this.matrixGraphics.transformClientToGraphCoordinates({
-        x: area.x,
-        y: area.y
-      });
-
-      var bottomRight = this.matrixGraphics.transformClientToGraphCoordinates({
-        x: area.x + area.width,
-        y: area.y + area.height
-      });
-
-      this.matrix.forEachNode(node => {
-        var nodePos = this.matrixLayout.getNodePosition(node.id);
-        var xid = (nodePos.x + 400) / 10;
-        var yid = (nodePos.y + 400) / 10;
-        if (topLeft.x < nodePos.x && nodePos.x < bottomRight.x &&
-          topLeft.y < nodePos.y && nodePos.y < bottomRight.y) {
-          currentSelectedMatrixNodes.add(node.id);
-          [xid, yid].forEach(nid => {
-            currentSelectedNodes.add(nid);
-          });
-        } else {
-          if (currentSelectedMatrixNodes.has(node.id)) {
-            currentSelectedMatrixNodes.delete(node.id);
-            if (!this.state.matrixSelectedNodes.has(node.id)) {
-              [xid, yid].forEach(nid => {
-                if (currentSelectedNodes.has(nid)) {
-                  currentSelectedNodes.delete(nid);
-                }
-              });
-            }
-          }
-        }
-      });
-      this.recolor();
-    });
-
-    dragndrop.onStop(() => {
-      selectionIndicator.style.display = 'none';
-      this.setState({ selectedNodes: new Set([...this.state.matrixSelectedNodes, ...currentSelectedMatrixNodes]) });
-      currentSelectedMatrixNodes = new Set([]);
       this.setState({ selectedNodes: new Set([...this.state.selectedNodes, ...currentSelectedNodes]) });
       currentSelectedNodes = new Set([]);
     });
@@ -500,14 +370,22 @@ class Network extends Component {
     this.loadGraph(out);
   }
 
-  recolor = () => {
+  recolor = (currentSelectedNodes = new Set()) => {
+    const checkNode = id => this.state.selectedNodes.has(id) || currentSelectedNodes.has(id)
     this.graph.forEachNode(node => {
       var nodeUI = this.graphics.getNodeUI(node.id);
-      if (this.state.selectedNodes.has(node.id)) {
+      if (checkNode(node.id)) {
         nodeUI.color = 0xFFA500ff;
         // nodeUI.size = 20;
       } else {
-        nodeUI.color = 0x009ee8ff;
+        var alpha = 1;
+        if (this.state.colorKey) {
+          alpha = 0.5
+        }
+        const colorHex = '009ee8' + this.decimalToHex(parseInt(alpha * 255), 2)
+        const color = parseInt(colorHex, 16);
+        this.setState({ linkTransparency: alpha })
+        nodeUI.color = color;
         // nodeUI.size = 10;
       }
     })
@@ -517,7 +395,7 @@ class Network extends Component {
       var nodeUI = this.matrixGraphics.getNodeUI(node.id);
       var x = (position.x + 400) / 10;
       var y = (position.y + 400) / 10;
-      if (this.state.selectedNodes.has(x) && this.state.selectedNodes.has(y)) {
+      if (checkNode(x) && checkNode(y)) {
         nodeUI.color = 0xFFA500ff;
         // nodeUI.size = 15;
       } else {
@@ -530,10 +408,8 @@ class Network extends Component {
     this.renderer.rerender();
   }
 
-  clearSelectedNodes = () => {
-    this.setState({ selectedNodes: new Set([]), matrixSelectedNodes: new Set([]) });
-    this.renderer.rerender();
-    this.matrixRenderer.rerender();
+  clearSelectedNodes = async () => {
+    await this.setState({ selectedNodes: new Set([]) });
     this.recolor();
   }
 
@@ -571,12 +447,10 @@ class Network extends Component {
   doRandomWalk = async () => {
     var currentId = this.state.randomWalkFrom;
     for (let i = 0; i < this.state.randomWalkStep; i++) {
-      if (!this.state.selectedNodes.has(currentId)) {
-        await this.addNodeToSelectedNodes(currentId);
-      }
+      await this.addNodeToSelectedNodes(currentId);
       var candidates = []
       this.graph.forEachLinkedNode(currentId, (linkedNode, link) => {
-        candidates.push(linkedNode.id)
+        candidates.push(link.toId)
       })
       currentId = candidates[Math.floor(Math.random() * candidates.length)];
     }
