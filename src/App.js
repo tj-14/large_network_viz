@@ -132,7 +132,6 @@ class Network extends Component {
 
     this.events = Viva.Graph.webglInputEvents(this.matrixGraphics, this.matrix);
     this.events.click(node => {
-      // console.log('Single click on node: ' + node.id);
       var position = this.matrixLayout.getNodePosition(node.id);
       var [x, y] = this.getXYfromMatrix(position)
       this.forceAddANode(x)
@@ -287,7 +286,7 @@ class Network extends Component {
       });
       this.renderer.rerender()
       if (this.graphNumNodes <= SIZE_CUTOFF) {
-        this.recolor()
+        this.recolor(currentSelectedNodes)
       }
     });
 
@@ -330,13 +329,10 @@ class Network extends Component {
   }
 
   click = () => {
-    // console.log(this.state);
     if (this.state.isRendering) {
       this.renderer.pause();
-      // console.log("pause");
     } else {
       this.renderer.resume();
-      // console.log("resume");
     }
     this.setState({ isRendering: !this.state.isRendering })
   }
@@ -385,7 +381,6 @@ class Network extends Component {
   setLinkTransparency = alpha => {
     const colorHex = '000000' + this.decimalToHex(parseInt(alpha * 255), 2)
     const color = parseInt(colorHex, 16);
-    // console.log(alpha, colorHex, color);
     this.setState({ linkTransparency: alpha })
     this.graph.forEachLink(link => {
       const linkUI = this.graphics.getLinkUI(link.id);
@@ -434,7 +429,6 @@ class Network extends Component {
       var position = this.matrixLayout.getNodePosition(node.id);
       var [x, y] = this.getXYfromMatrix(position)
       var nodeUI = this.matrixGraphics.getNodeUI(node.id)
-      console.log(node.id, x, y)
       if (checkNode(x) && checkNode(y)) {
         nodeUI.color = 0xFFA500ff;
       } else {
