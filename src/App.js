@@ -17,6 +17,8 @@ import {
   Highlight
 } from 'react-vis';
 
+const SIZE_CUTOFF = 1000
+
 class Network extends Component {
 
   state = {
@@ -53,6 +55,7 @@ class Network extends Component {
     this.setState({ selectedNodes: new Set([]) });
 
     const nodeOptions = []
+    this.graphNumNodes = data.nodes.length
     data.nodes.forEach(n => { this.originalGraph.addNode(String(n.id), n); })
     data.edges.forEach(e => { this.originalGraph.addLink(String(e.source), String(e.target)); })
     this.originalGraph.forEachNode(node => {
@@ -144,12 +147,19 @@ class Network extends Component {
       const newSelectedNodes = new Set(this.state.selectedNodes);
       newSelectedNodes.delete(id);
       this.setState({ selectedNodes: newSelectedNodes });
-      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
+      if (this.graphNumNodes > SIZE_CUTOFF) {
+        this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
+      }
     } else {
       this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
-      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), true)
+      if (this.graphNumNodes > SIZE_CUTOFF) {
+        this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), true)
+      }
     }
     this.renderer.rerender()
+    if (this.graphNumNodes <= SIZE_CUTOFF) {
+      this.recolor()
+    }
   }
 
   preComputeOriginalGraph = () => {
@@ -260,15 +270,22 @@ class Network extends Component {
         if (topLeft.x < nodePos.x && nodePos.x < bottomRight.x &&
           topLeft.y < nodePos.y && nodePos.y < bottomRight.y) {
           currentSelectedNodes.add(node.id);
-          this.recolorOneNode(node, this.graphics.getNodeUI(node.id), true)
+          if (this.graphNumNodes > SIZE_CUTOFF) {
+            this.recolorOneNode(node, this.graphics.getNodeUI(node.id), true)
+          }
         } else {
           if (currentSelectedNodes.has(node.id)) {
             currentSelectedNodes.delete(node.id);
-            this.recolorOneNode(node, this.graphics.getNodeUI(node.id), this.state.selectedNodes.has(node.id))
+            if (this.graphNumNodes > SIZE_CUTOFF) {
+              this.recolorOneNode(node, this.graphics.getNodeUI(node.id), this.state.selectedNodes.has(node.id))
+            }
           }
         }
       });
       this.renderer.rerender()
+      if (this.graphNumNodes <= SIZE_CUTOFF) {
+        this.recolor()
+      }
     });
 
     dragndrop.onStop(() => {
@@ -425,10 +442,15 @@ class Network extends Component {
   }
 
   clearSelectedNodes = async () => {
-    for (var id in this.state.selectedNodes) {
-      this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
+    if (this.graphNumNodes > SIZE_CUTOFF) {
+      for (var id in this.state.selectedNodes) {
+        this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), false)
+      }
     }
     await this.setState({ selectedNodes: new Set([]) });
+    if (this.graphNumNodes <= SIZE_CUTOFF) {
+      this.recolor()
+    }
     this.renderer.rerender()
   }
 
