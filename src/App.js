@@ -135,8 +135,11 @@ class Network extends Component {
       // console.log('Single click on node: ' + node.id);
       var position = this.matrixLayout.getNodePosition(node.id);
       var [x, y] = this.getXYfromMatrix(position)
-      this.addNodeToSelectedNodes(x);
-      this.addNodeToSelectedNodes(y);
+      this.forceAddANode(x)
+      this.forceAddANode(y)
+      if (this.graphNumNodes <= SIZE_CUTOFF) {
+        this.recolor()
+      }
     });
 
     this.matrixRenderer.run();
@@ -431,6 +434,7 @@ class Network extends Component {
       var position = this.matrixLayout.getNodePosition(node.id);
       var [x, y] = this.getXYfromMatrix(position)
       var nodeUI = this.matrixGraphics.getNodeUI(node.id)
+      console.log(node.id, x, y)
       if (checkNode(x) && checkNode(y)) {
         nodeUI.color = 0xFFA500ff;
       } else {
@@ -491,7 +495,7 @@ class Network extends Component {
     this.setState({ randomWalkStep: e.target.value });
   }
 
-  addNodeToSelectedNodes = async id => {
+  forceAddANode = async id => {
     await this.setState({ selectedNodes: new Set(this.state.selectedNodes).add(id) });
     this.recolorOneNode(this.graph.getNode(id), this.graphics.getNodeUI(id), true)
     this.renderer.rerender()
@@ -500,7 +504,7 @@ class Network extends Component {
   doRandomWalk = async () => {
     var currentId = this.state.randomWalkFrom;
     for (let i = 0; i < this.state.randomWalkStep; i++) {
-      await this.addNodeToSelectedNodes(currentId);
+      await this.forceAddANode(currentId);
       var candidates = []
       this.graph.forEachLinkedNode(currentId, (linkedNode, link) => {
         candidates.push(link.toId)
@@ -613,7 +617,7 @@ class Network extends Component {
     )
 
     const degreeHist = this.makeHist(this.originalGraphDegreeDist, this.state.degreeArea, this.degreeBrush);
-    const betweennessHist = this.state.betweennessEnabled ? this.makeHist(this.originalGraphBetweennessDist, this.state.betweennessArea, this.betweennessBrush) : <Button onClick={this.enableBetweenness}>Enable</Button>;
+    const betweennessHist = this.state.betweennessEnabled ? this.makeHist(this.originalGraphBetweennessDist, this.state.betweennessArea, this.betweennessBrush) : <Button size='mini' onClick={this.enableBetweenness}>Enable</Button>;
 
     return (
       <Grid>
@@ -651,31 +655,34 @@ class Network extends Component {
 
             <Divider/>
 
-            <div>
-              <Dropdown fluid search selection options={this.state.attrOptions} onChange={this.changeColorBy} placeholder="color by"/>
-              <div style={{ height: '5px' }} />
-              <Button size='mini' onClick={this.resetColorBy}>Reset color</Button>
-            </div>
+            <Grid>
+              <Grid.Column width={10}>
+                <Dropdown fluid search selection options={this.state.attrOptions} onChange={this.changeColorBy} placeholder="color by"/>
+              </Grid.Column>
+              <Grid.Column width={6}>
+                <Button onClick={this.resetColorBy}>Reset color</Button>
+              </Grid.Column>
+            </Grid>
 
             <Divider/>
 
             <div>
               <Header as='h3'><Popup
                 trigger={<Icon name='question circle' size='mini' />}
-                content="Select by clicking on a node or shift-drag on a graph or by doing random walk below"
+                content="Select by clicking on a node or shift-drag on a graph or by enter nodeFrom below (if step is more than 1, it will perform a random walk from nodeFrom)"
                 basic
                 size="mini"
               />Node selection</Header>
 
               <Grid>
                 <Grid.Column width={5}>
-                  <Input fluid label='Step' defaultValue="2" onChange={this.changeRandomWalkStep} />
+                  <Input fluid label='Step' defaultValue="1" onChange={this.changeRandomWalkStep} />
                 </Grid.Column>
                 <Grid.Column width={5}>
                   <Dropdown fluid search selection options={this.state.nodeOptions} onChange={this.changeRandomWalkFrom} placeholder="nodeFrom"/>
                 </Grid.Column>
                 <Grid.Column width={5}>
-                  <Button onClick={this.doRandomWalk}>Go</Button>
+                  <Button onClick={this.doRandomWalk}>Select</Button>
                 </Grid.Column>
               </Grid>
               <Header as='h4'>Selected Nodes:</Header>
