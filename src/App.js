@@ -5,7 +5,7 @@ import Viva from 'vivagraphjs';
 import * as centrality from 'ngraph.centrality';
 import snap_fb from './data/snap_fb.json';
 import { saveAs } from 'file-saver';
-import { Form, Grid, Header, Button, List, Segment, Popup, Icon, TextArea } from 'semantic-ui-react';
+import { Form, Grid, Dropdown, Header, Button, List, Segment, Popup, Icon, TextArea } from 'semantic-ui-react';
 import {
   XYPlot,
   XAxis,
@@ -20,7 +20,10 @@ class Network extends Component {
 
   state = {
     isRendering: true,
+    nodeOptions: [],
+    attrOptions: [],
     selectedNodes: new Set([]),
+    colorBy: null,
     springLength: 10,
     springCoeff: 0.0005,
     dragCoeff: 0.02,
@@ -48,16 +51,27 @@ class Network extends Component {
     this.includedNodes = new Set([]);
     this.setState({ selectedNodes: new Set([]) });
 
-    data.nodes.forEach(n => { this.originalGraph.addNode(String(n.id)); })
+    const nodeOptions = []
+    data.nodes.forEach(n => { this.originalGraph.addNode(String(n.id), n); })
     data.edges.forEach(e => { this.originalGraph.addLink(String(e.source), String(e.target)); })
     this.originalGraph.forEachNode(node => {
-      this.graph.addNode(String(node.id));
-      this.includedNodes.add(String(node.id));
+      const sid = String(node.id)
+      this.graph.addNode(sid, node.data);
+      this.includedNodes.add(sid);
+      nodeOptions.push({key: sid, value: sid, text: sid})
     });
     this.originalGraph.forEachLink(link => {
       this.graph.addLink(link.fromId, link.toId);
     });
     this.preComputeOriginalGraph();
+    this.setState({
+      nodeOptions: nodeOptions,
+      attrOptions: Object.keys(data.nodes[0]).map(k => ({
+        key: k,
+        value: k,
+        text: k,
+      })),
+    })
 
     // Set custom nodes appearance
     this.graphics = Viva.Graph.View.webglGraphics();
@@ -378,10 +392,7 @@ class Network extends Component {
         nodeUI.color = 0xFFA500ff;
         // nodeUI.size = 20;
       } else {
-        var alpha = 1;
-        if (this.state.colorKey) {
-          alpha = 0.5
-        }
+        var alpha = this.state.colorBy ? node.data[this.state.colorBy] : 1;
         const colorHex = '009ee8' + this.decimalToHex(parseInt(alpha * 255), 2)
         const color = parseInt(colorHex, 16);
         this.setState({ linkTransparency: alpha })
@@ -432,8 +443,18 @@ class Network extends Component {
     return JSON.stringify(out);
   }
 
-  changeRandomWalkFrom = e => {
-    this.setState({ randomWalkFrom: e.target.value });
+  changeColorBy = async (e, d) => {
+    await this.setState({ colorBy: d.value });
+    this.recolor();
+  }
+
+  resetColorBy = async () => {
+    await this.setState({ colorBy: null });
+    this.recolor();
+  }
+
+  changeRandomWalkFrom = (e, d) => {
+    this.setState({ randomWalkFrom: d.value });
   }
 
   changeRandomWalkStep = e => {
@@ -581,6 +602,11 @@ class Network extends Component {
             }}
             >Export Current Network as JSON</Button>
             <Segment>
+              <Dropdown fluid search selection options={this.state.attrOptions} onChange={this.changeColorBy} placeholder="color by"/>
+              <div style={{ height: '5px' }} />
+              <Button size='mini' onClick={this.resetColorBy}>Reset Color</Button>
+            </Segment>
+            <Segment>
               <Header as='h3'><Popup
                 trigger={<Icon name='question circle' size='mini' />}
                 content="Select by clicking on a node or shift-drag on a graph or by doing random walk below"
@@ -588,9 +614,10 @@ class Network extends Component {
                 size="mini"
               />Select Nodes</Header>
 
+              <Dropdown fluid search selection options={this.state.nodeOptions} onChange={this.changeRandomWalkFrom} placeholder="nodeFrom"/>
               <Form onSubmit={this.doRandomWalk}>
                 <Form.Group widths='equal'>
-                  <Form.Input fluid label='From' onChange={this.changeRandomWalkFrom} />
+                  {/* <Form.Input fluid label='From' onChange={this.changeRandomWalkFrom} /> */}
                   <Form.Input fluid label='Step' defaultValue="2" onChange={this.changeRandomWalkStep} />
                 </Form.Group>
                 <Form.Button size='mini'>Go</Form.Button>
@@ -600,6 +627,23 @@ class Network extends Component {
               <div style={{height: '5px'}}/>
               <Button size='mini' onClick={this.newGraphFromSelectedNodes}>Render Selected Nodes as New Network</Button>
               <SelectedNodesList />
+            </Segment>
+
+            <Segment>
+              <Header as='h3'><Popup
+                trigger={<Icon name='question circle' size='mini' />}
+                content="Drag to draw an area on the histogram to filter. Click on it to reset."
+                basic
+                size="mini"
+              />Filter by Degree</Header>
+              {degreeHist}
+              <Header as='h3'><Popup
+                trigger={<Icon name='question circle' size='mini' />}
+                content="Calculating betweenness takes O(V*E) time. It is disabled by default."
+                basic
+                size="mini"
+              />Filter by Betweenness</Header>
+              {betweennessHist}
             </Segment>
 
             {
@@ -677,22 +721,6 @@ class Network extends Component {
               </Grid>
             </Segment>
 
-            <Segment>
-              <Header as='h3'><Popup
-                trigger={<Icon name='question circle' size='mini' />}
-                content="Drag to draw an area on the histogram to filter. Click on it to reset."
-                basic
-                size="mini"
-              />Filter by Degree</Header>
-              {degreeHist}
-              <Header as='h3'><Popup
-                trigger={<Icon name='question circle' size='mini' />}
-                content="Calculating betweenness takes O(V*E) time. It is disabled by default."
-                basic
-                size="mini"
-              />Filter by Betweenness</Header>
-              {betweennessHist}
-            </Segment>
 
             <div>Scroll on the graph to zoom in/zoom out</div>
           </Grid.Column>
