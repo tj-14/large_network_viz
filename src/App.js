@@ -5,7 +5,7 @@ import Viva from 'vivagraphjs';
 import * as centrality from 'ngraph.centrality';
 import snap_fb from './data/snap_fb.json';
 import { saveAs } from 'file-saver';
-import { Form, Grid, Dropdown, Header, Button, List, Segment, Popup, Icon, TextArea } from 'semantic-ui-react';
+import { Divider, Form, Input, Grid, Dropdown, Header, Button, List, Popup, Icon, TextArea } from 'semantic-ui-react';
 import {
   XYPlot,
   XAxis,
@@ -579,13 +579,14 @@ class Network extends Component {
         <Grid.Row>
           <Grid.Column width={4} className={"sideDiv"}>
             <h2>Control Panel</h2>
-            <Form>
-              Data:
-              <Form.Group widths='equal'>
-                <Form.Button size='mini' onClick={() => { this.loadGraph(snap_fb); }}>SNAP</Form.Button>
+            <Grid>
+              <Grid.Column width={5}>
+                <Button size='mini' onClick={() => { this.loadGraph(snap_fb); }}>SNAP</Button>
+              </Grid.Column>
+              <Grid.Column width={5}>
                 <Popup
                   trigger={
-                    <Form.Button size='mini' color='red' content='Custom' />
+                    <Button size='mini' color='red' content='Custom' />
                   }
                   content={<Form>
                     <TextArea placeholder='{"nodes": [{"id":"1"},{"id":"2"}], "edges": [{"id":"0","source":"1","target":"2"}]}' onChange={this.updateInput} />
@@ -594,65 +595,86 @@ class Network extends Component {
                   on='click'
                   position='top right'
                 />
-              </Form.Group>
-            </Form>
-            <Button onClick={() => {
-              var blob = new Blob([this.exportJson()], { type: "text/plain;charset=utf-8" });
-              saveAs(blob, `network_data_${moment().format("YYMMDDhhmmss")}.json`);
-            }}
-            >Export Current Network as JSON</Button>
-            <Segment>
+              </Grid.Column>
+              <Grid.Column width={5}>
+                <Button size='mini' onClick={() => {
+                  var blob = new Blob([this.exportJson()], { type: "text/plain;charset=utf-8" });
+                  saveAs(blob, `network_data_${moment().format("YYMMDDhhmmss")}.json`);
+                }}
+                >Export</Button>
+              </Grid.Column>
+            </Grid>
+
+            <Divider/>
+
+            <div>
               <Dropdown fluid search selection options={this.state.attrOptions} onChange={this.changeColorBy} placeholder="color by"/>
               <div style={{ height: '5px' }} />
-              <Button size='mini' onClick={this.resetColorBy}>Reset Color</Button>
-            </Segment>
-            <Segment>
+              <Button size='mini' onClick={this.resetColorBy}>Reset color</Button>
+            </div>
+
+            <Divider/>
+
+            <div>
               <Header as='h3'><Popup
                 trigger={<Icon name='question circle' size='mini' />}
                 content="Select by clicking on a node or shift-drag on a graph or by doing random walk below"
                 basic
                 size="mini"
-              />Select Nodes</Header>
+              />Node selection</Header>
 
-              <Dropdown fluid search selection options={this.state.nodeOptions} onChange={this.changeRandomWalkFrom} placeholder="nodeFrom"/>
-              <Form onSubmit={this.doRandomWalk}>
-                <Form.Group widths='equal'>
-                  {/* <Form.Input fluid label='From' onChange={this.changeRandomWalkFrom} /> */}
-                  <Form.Input fluid label='Step' defaultValue="2" onChange={this.changeRandomWalkStep} />
-                </Form.Group>
-                <Form.Button size='mini'>Go</Form.Button>
-              </Form>
+              <Grid>
+                <Grid.Column width={5}>
+                  <Input fluid label='Step' defaultValue="2" onChange={this.changeRandomWalkStep} />
+                </Grid.Column>
+                <Grid.Column width={5}>
+                  <Dropdown fluid search selection options={this.state.nodeOptions} onChange={this.changeRandomWalkFrom} placeholder="nodeFrom"/>
+                </Grid.Column>
+                <Grid.Column width={5}>
+                  <Button onClick={this.doRandomWalk}>Go</Button>
+                </Grid.Column>
+              </Grid>
               <Header as='h4'>Selected Nodes:</Header>
-              <Button size='mini' onClick={this.clearSelectedNodes}>Clear Selected Nodes</Button>
-              <div style={{height: '5px'}}/>
-              <Button size='mini' onClick={this.newGraphFromSelectedNodes}>Render Selected Nodes as New Network</Button>
               <SelectedNodesList />
-            </Segment>
+              <Grid>
+                <Grid.Column width={8}>
+                  <Button size='mini' onClick={this.clearSelectedNodes}>Clear</Button>
+                </Grid.Column>
+                <Grid.Column width={8}>
+                  <Button size='mini' onClick={this.newGraphFromSelectedNodes}>Render</Button>
+                </Grid.Column>
+              </Grid>
+            </div>
 
-            <Segment>
+            <Divider/>
+
+            <div>
               <Header as='h3'><Popup
                 trigger={<Icon name='question circle' size='mini' />}
                 content="Drag to draw an area on the histogram to filter. Click on it to reset."
                 basic
                 size="mini"
-              />Filter by Degree</Header>
+              />Degree filtering</Header>
               {degreeHist}
               <Header as='h3'><Popup
                 trigger={<Icon name='question circle' size='mini' />}
                 content="Calculating betweenness takes O(V*E) time. It is disabled by default."
                 basic
                 size="mini"
-              />Filter by Betweenness</Header>
+              />Betweenness filtering</Header>
               {betweennessHist}
-            </Segment>
+            </div>
 
-            {
-              this.state.isRendering ?
-                <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="pause icon"></i>Pause Force Layout</button> :
-              <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="play icon"></i>Resume Force Layout</button>
-            }
+            <Divider/>
 
-            <Segment>
+            <div>
+
+              {
+                this.state.isRendering ?
+                  <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="pause icon"></i>Pause Force Layout</button> :
+                <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="play icon"></i>Resume Force Layout</button>
+              }
+
               <Header as='h3'>Force Layout Parameters</Header>
               <Grid>
                 <Grid.Row>
@@ -719,11 +741,13 @@ class Network extends Component {
                   <Grid.Column width={3}>{this.state.linkTransparency}</Grid.Column>
                 </Grid.Row>
               </Grid>
-            </Segment>
+            </div>
 
+            <Divider/>
 
             <div>Scroll on the graph to zoom in/zoom out</div>
           </Grid.Column>
+
           <Grid.Column width={8}>
             <h2>Force Layout</h2>
             <div id="graph-div">
@@ -731,6 +755,7 @@ class Network extends Component {
               <div id="graph-overlay" />
             </div>
           </Grid.Column>
+
           <Grid.Column width={4}>
             <h2>Matrix Layout</h2>
             <div id="matrix-div">
