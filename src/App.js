@@ -572,7 +572,7 @@ class Network extends Component {
     )
 
     const degreeHist = this.makeHist(this.originalGraphDegreeDist, this.state.degreeArea, this.degreeBrush);
-    const betweennessHist = this.state.betweennessEnabled ? this.makeHist(this.originalGraphBetweennessDist, this.state.betweennessArea, this.betweennessBrush) : <Button onClick={this.enableBetweenness}>Enable Betweenness Filter</Button>;
+    const betweennessHist = this.state.betweennessEnabled ? this.makeHist(this.originalGraphBetweennessDist, this.state.betweennessArea, this.betweennessBrush) : <Button onClick={this.enableBetweenness}>Enable</Button>;
 
     return (
       <Grid>
@@ -671,8 +671,8 @@ class Network extends Component {
 
               {
                 this.state.isRendering ?
-                  <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="pause icon"></i>Pause Force Layout</button> :
-                <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="play icon"></i>Resume Force Layout</button>
+                  <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="pause icon"></i>Pause layout</button> :
+                <button className="ui icon left labeled button" onClick={this.click}><i aria-hidden="true" className="play icon"></i>Resume layout</button>
               }
 
               <Header as='h3'>Force Layout Parameters</Header>
