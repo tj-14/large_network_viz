@@ -52,7 +52,10 @@ class Network extends Component {
     this.originalGraph = Viva.Graph.graph();
     this.graph = Viva.Graph.graph();
     this.includedNodes = new Set([]);
-    this.setState({ selectedNodes: new Set([]) });
+    this.setState({
+      selectedNodes: new Set([]),
+      colorBy: null,
+    });
 
     const nodeOptions = []
     this.graphNumNodes = data.nodes.length
@@ -197,7 +200,6 @@ class Network extends Component {
 
   componentDidMount() {
     // Construct the graph
-    // this.loadGraph(snap_fb);
 
     document.addEventListener('keydown', e => {
       if (e.which === 16) { // shift key
@@ -510,9 +512,10 @@ class Network extends Component {
   doFilter = () => {
     this.includedNodes = new Set([]);
     this.setState({ selectedNodes: new Set([]) });
-    const canExpand = this.state.degreeArea === null || this.state.betweennessArea === null;
-    var graphToConsider = canExpand ? this.originalGraph : this.graph
-    graphToConsider.forEachNode(node => {
+    this.graph.forEachNode(node => {
+      this.graph.removeNode(node.id)
+    })
+    this.originalGraph.forEachNode(node => {
       const degree = this.originalGraphNodeDegree[node.id];
       var isIn = true;
       if (this.state.degreeArea && (degree < this.state.degreeArea.left || this.state.degreeArea.right < degree)) {
@@ -526,16 +529,13 @@ class Network extends Component {
           isIn = false;
         }
       }
+      var sid = String(node.id)
       if (isIn) {
-        this.includedNodes.add(String(node.id));
-        this.graph.addNode(node.id);
-      } else {
-        this.graph.removeNode(node.id);
+        this.includedNodes.add(sid);
+        this.graph.addNode(sid);
       }
     });
-    if (canExpand) {
-      this.resetLinks();
-    }
+    this.resetLinks();
     this.recolor();
   }
 
@@ -682,10 +682,13 @@ class Network extends Component {
               <Header as='h4'>Selected Nodes:</Header>
               <SelectedNodesList />
               <Grid>
-                <Grid.Column width={8}>
+                <Grid.Column width={5}>
                   <Button size='mini' onClick={this.clearSelectedNodes}>Clear</Button>
                 </Grid.Column>
-                <Grid.Column width={8}>
+                <Grid.Column width={5}>
+                  <Button size='mini' onClick={() => this.recolor()}>Refresh matrix</Button>
+                </Grid.Column>
+                <Grid.Column width={5}>
                   <Button size='mini' onClick={this.newGraphFromSelectedNodes}>Render</Button>
                 </Grid.Column>
               </Grid>
