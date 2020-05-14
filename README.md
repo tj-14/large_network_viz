@@ -1,1 +1,1 @@
-# admm_viz
+# Large scale network data visualization tool (Prototype)
